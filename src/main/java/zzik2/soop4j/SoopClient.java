@@ -11,7 +11,7 @@ import zzik2.soop4j.http.SoopHttpClient;
  * SOOP API의 메인 클라이언트입니다.
  * 라이브 정보 조회, 채널 정보 조회, 채팅 연결 등의 기능을 제공합니다.
  *
- * <pre>{@code
+ * <pre>
  * // 기본 사용법
  * SoopClient client = SoopClient.builder().build();
  *
@@ -24,13 +24,13 @@ import zzik2.soop4j.http.SoopHttpClient;
  * // 채팅 연결
  * SoopChat chat = client.chat("streamerId")
  *         .addListener(new SoopChatAdapter() {
- *             @Override
+ *             &#64;Override
  *             public void onChat(ChatEvent event) {
  *                 System.out.println(event.getUsername() + ": " + event.getMessage());
  *             }
  *         });
  * chat.connect();
- * }</pre>
+ * </pre>
  */
 public class SoopClient {
 
