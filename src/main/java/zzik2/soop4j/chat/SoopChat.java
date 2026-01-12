@@ -14,18 +14,23 @@ import javax.net.ssl.SSLContext;
 import javax.net.ssl.TrustManager;
 import javax.net.ssl.X509TrustManager;
 import java.net.URI;
+import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.security.cert.X509Certificate;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.*;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 /**
  * SOOP 채팅 WebSocket 클라이언트입니다.
  * 실시간 채팅, 후원, 구독 등의 이벤트를 수신할 수 있습니다.
  */
 public class SoopChat {
+
+    private static final Logger logger = Logger.getLogger(SoopChat.class.getName());
 
     private final String streamerId;
     private final SoopHttpClient httpClient;
@@ -117,6 +122,13 @@ public class SoopChat {
 
                 @Override
                 public void onMessage(String message) {
+                    handleMessage(message);
+                }
+
+                @Override
+                public void onMessage(ByteBuffer bytes) {
+                    String message = new String(bytes.array(), StandardCharsets.UTF_8);
+                    logger.fine("Binary message received: " + message);
                     handleMessage(message);
                 }
 
@@ -271,6 +283,7 @@ public class SoopChat {
     }
 
     private void handleError(Exception ex) {
+        logger.log(Level.SEVERE, "WebSocket error", ex);
     }
 
     private void scheduleReconnect() {
