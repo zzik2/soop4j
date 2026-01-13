@@ -16,6 +16,17 @@ SOOP(아프리카TV) 라이브/채널/채팅 API를 Java로 사용할 수 있도
 
 ## 빠른 시작
 
+### 설치
+```groovy
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    implementation("kr.zzik2:soop4j:0.0.1")
+}
+```
+
 ### 라이브 정보 조회
 
 ```java
