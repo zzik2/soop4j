@@ -150,6 +150,16 @@ SoopClient client = SoopClient.builder()
         .build();
 ```
 
+### 비동기 실행자 설정
+
+```java
+Executor executor = Executors.newFixedThreadPool(4);
+
+SoopClient client = SoopClient.builder()
+        .executor(executor)
+        .build();
+```
+
 ### 채팅 재연결 옵션
 
 ```java
@@ -157,6 +167,14 @@ ChatOptions options = new ChatOptions.Builder()
         .autoReconnect(true)
         .reconnectDelayMs(5000)
         .maxReconnectAttempts(5)
+        .build();
+```
+
+### 채팅 TLS 인증서 검증 옵션
+
+```java
+ChatOptions options = new ChatOptions.Builder()
+        .trustAllCertificates(true)
         .build();
 ```
 

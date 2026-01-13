@@ -42,7 +42,10 @@ public class SoopHttpClient {
                     .build();
 
             HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
-            return gson.fromJson(response.body(), JsonObject.class);
+            validateResponse(response, url);
+            return parseJsonObject(response.body(), url);
+        } catch (SoopException e) {
+            throw e;
         } catch (Exception e) {
             throw new SoopException("GET 요청 실패: " + url, e);
         }
@@ -63,9 +66,34 @@ public class SoopHttpClient {
                     .build();
 
             HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
-            return gson.fromJson(response.body(), JsonObject.class);
+            validateResponse(response, url);
+            return parseJsonObject(response.body(), url);
+        } catch (SoopException e) {
+            throw e;
         } catch (Exception e) {
             throw new SoopException("POST 요청 실패: " + url, e);
+        }
+    }
+
+    private void validateResponse(HttpResponse<String> response, String url) {
+        int statusCode = response.statusCode();
+        if (statusCode >= 400) {
+            String message = String.format("HTTP 요청 실패 (상태 코드: %d): %s", statusCode, url);
+            throw new SoopException(message);
+        }
+    }
+
+    private JsonObject parseJsonObject(String body, String url) {
+        try {
+            JsonObject result = gson.fromJson(body, JsonObject.class);
+            if (result == null) {
+                throw new SoopException("JSON 파싱 실패: " + url);
+            }
+            return result;
+        } catch (SoopException e) {
+            throw e;
+        } catch (Exception e) {
+            throw new SoopException("JSON 파싱 실패: " + url, e);
         }
     }
 

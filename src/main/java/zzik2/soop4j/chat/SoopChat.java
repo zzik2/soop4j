@@ -17,8 +17,8 @@ import java.net.URI;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.security.cert.X509Certificate;
-import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.List;
 import java.util.concurrent.*;
 import java.util.logging.Level;
@@ -36,7 +36,7 @@ public class SoopChat {
     private final SoopHttpClient httpClient;
     private final SoopLive liveApi;
     private final ChatOptions options;
-    private final List<SoopChatListener> listeners = new ArrayList<>();
+    private final List<SoopChatListener> listeners = new CopyOnWriteArrayList<>();
 
     private WebSocketClient webSocketClient;
     private LiveDetail liveDetail;
@@ -143,7 +143,7 @@ public class SoopChat {
                 }
             };
 
-            SSLContext sslContext = createTrustAllSSLContext();
+            SSLContext sslContext = createSSLContext();
             webSocketClient.setSocketFactory(sslContext.getSocketFactory());
             webSocketClient.addHeader("Sec-WebSocket-Protocol", "chat");
             webSocketClient.connect();
@@ -284,6 +284,7 @@ public class SoopChat {
 
     private void handleError(Exception ex) {
         logger.log(Level.SEVERE, "WebSocket error", ex);
+        handleClose("WebSocket 오류: " + ex.getMessage());
     }
 
     private void scheduleReconnect() {
@@ -324,25 +325,28 @@ public class SoopChat {
         return String.format("wss://%s:%d/Websocket/%s", domain, port, streamerId);
     }
 
-    private SSLContext createTrustAllSSLContext() {
+    private SSLContext createSSLContext() {
         try {
-            TrustManager[] trustAllCerts = new TrustManager[] {
-                    new X509TrustManager() {
-                        public X509Certificate[] getAcceptedIssuers() {
-                            return new X509Certificate[0];
-                        }
+            if (options.isTrustAllCertificates()) {
+                TrustManager[] trustAllCerts = new TrustManager[] {
+                        new X509TrustManager() {
+                            public X509Certificate[] getAcceptedIssuers() {
+                                return new X509Certificate[0];
+                            }
 
-                        public void checkClientTrusted(X509Certificate[] certs, String authType) {
-                        }
+                            public void checkClientTrusted(X509Certificate[] certs, String authType) {
+                            }
 
-                        public void checkServerTrusted(X509Certificate[] certs, String authType) {
+                            public void checkServerTrusted(X509Certificate[] certs, String authType) {
+                            }
                         }
-                    }
-            };
+                };
 
-            SSLContext sslContext = SSLContext.getInstance("TLS");
-            sslContext.init(null, trustAllCerts, new java.security.SecureRandom());
-            return sslContext;
+                SSLContext sslContext = SSLContext.getInstance("TLS");
+                sslContext.init(null, trustAllCerts, new java.security.SecureRandom());
+                return sslContext;
+            }
+            return SSLContext.getDefault();
         } catch (Exception e) {
             throw new SoopException("SSL 컨텍스트 생성 실패", e);
         }
@@ -416,6 +420,7 @@ public class SoopChat {
         private boolean autoReconnect = false;
         private int reconnectDelayMs = 5000;
         private int maxReconnectAttempts = 5;
+        private boolean trustAllCertificates = false;
 
         public Builder(String streamerId) {
             this.streamerId = streamerId;
@@ -441,6 +446,11 @@ public class SoopChat {
             return this;
         }
 
+        public Builder trustAllCertificates(boolean trustAllCertificates) {
+            this.trustAllCertificates = trustAllCertificates;
+            return this;
+        }
+
         public SoopChat build() {
             if (httpClient == null) {
                 httpClient = new SoopHttpClient();
@@ -449,6 +459,7 @@ public class SoopChat {
                     .autoReconnect(autoReconnect)
                     .reconnectDelayMs(reconnectDelayMs)
                     .maxReconnectAttempts(maxReconnectAttempts)
+                    .trustAllCertificates(trustAllCertificates)
                     .build();
             return new SoopChat(streamerId, httpClient, options);
         }

@@ -6,6 +6,9 @@ import zzik2.soop4j.chat.SoopChat;
 import zzik2.soop4j.constant.SoopConstants;
 import zzik2.soop4j.constant.SoopUrls;
 import zzik2.soop4j.http.SoopHttpClient;
+import zzik2.soop4j.internal.SoopExecutors;
+
+import java.util.concurrent.Executor;
 
 /**
  * SOOP API의 메인 클라이언트입니다.
@@ -41,12 +44,13 @@ public class SoopClient {
     private SoopClient(Builder builder) {
         String userAgent = builder.userAgent != null ? builder.userAgent : SoopConstants.DEFAULT_USER_AGENT;
         this.httpClient = new SoopHttpClient(userAgent);
+        Executor executor = builder.executor != null ? builder.executor : SoopExecutors.defaultExecutor();
 
         String liveBaseUrl = builder.liveBaseUrl != null ? builder.liveBaseUrl : SoopUrls.LIVE_BASE_URL;
         String channelBaseUrl = builder.channelBaseUrl != null ? builder.channelBaseUrl : SoopUrls.CHANNEL_BASE_URL;
 
-        this.live = new SoopLive(httpClient, liveBaseUrl);
-        this.channel = new SoopChannel(httpClient, channelBaseUrl);
+        this.live = new SoopLive(httpClient, liveBaseUrl, executor);
+        this.channel = new SoopChannel(httpClient, channelBaseUrl, executor);
     }
 
     /**
@@ -90,6 +94,7 @@ public class SoopClient {
         private String userAgent;
         private String liveBaseUrl;
         private String channelBaseUrl;
+        private Executor executor;
 
         public Builder userAgent(String userAgent) {
             this.userAgent = userAgent;
@@ -103,6 +108,11 @@ public class SoopClient {
 
         public Builder channelBaseUrl(String channelBaseUrl) {
             this.channelBaseUrl = channelBaseUrl;
+            return this;
+        }
+
+        public Builder executor(Executor executor) {
+            this.executor = executor;
             return this;
         }
 
