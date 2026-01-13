@@ -1,9 +1,10 @@
 plugins {
     id 'java'
+    id 'com.vanniktech.maven.publish' version '0.35.0'
 }
 
-group = 'zzik2.soop4j'
-version = '0.0.1'
+group = 'kr.zzik2'
+version = project.version
 
 compileJava.options.encoding = 'UTF-8'
 compileTestJava.options.encoding = 'UTF-8'
@@ -29,5 +30,55 @@ test {
 java {
     toolchain {
         languageVersion = JavaLanguageVersion.of(11)
+    }
+}
+
+mavenPublishing {
+    publishToMavenCentral(true)
+    signAllPublications()
+    
+    coordinates(group, "soop4j", version as String)
+
+    pom {
+        name = "Soop4J"
+        description = "SOOP(아프리카TV) 라이브/채널/채팅 API를 Java로 사용할 수 있도록 구성한 비공식 클라이언트 라이브러리입니다."
+        inceptionYear = "2026"
+        url = "https://github.com/zzik2/Soop4J"
+        
+        licenses {
+            license {
+                name = "The MIT License"
+                url = "http://opensource.org/licenses/MIT"
+            }
+        }
+        
+        developers {
+            developer {
+                id = "zzik2"
+                name = "zzik2"
+                url = "https://github.com/zzik2"
+            }
+        }
+        
+        scm {
+            url = "https://github.com/zzik2/Soop4J"
+            connection = "scm:git:git://github.com/zzik2/Soop4J.git"
+            developerConnection = "scm:git:ssh://git@github.com/zzik2/Soop4J.git"
+        }
+    }
+}
+
+tasks.register("checkPublishProps") {
+    doLast {
+        [
+                "mavenCentralUsername",
+                "mavenCentralPassword",
+                "signingInMemoryKey",
+                "signingInMemoryKeyId",
+                "signingInMemoryKeyPassword",
+        ].each { k ->
+            def present = providers.gradleProperty(k).present
+            println "${k} present = ${present}"
+        }
     }
 }
