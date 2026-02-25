@@ -51,14 +51,15 @@ StationInfo station = client.channel().station("streamerId");
 SoopClient client = SoopClient.builder().build();
 
 SoopChat chat = client.chat("streamerId")
-        .options(ChatOptions.defaults())
-        .addListener(new SoopChatAdapter() {
-            @Override
-            public void onChat(ChatEvent event) {
-                System.out.println(event.getUsername() + ": " + event.getMessage());
-            }
-        })
+        .autoReconnect(true)
         .build();
+
+chat.addListener(new SoopChatAdapter() {
+    @Override
+    public void onChat(ChatEvent event) {
+        System.out.println(event.getUsername() + ": " + event.getMessage());
+    }
+});
 
 chat.connect();
 ```
@@ -147,16 +148,6 @@ SoopClient client = SoopClient.builder()
         .userAgent("MyApp/1.0")
         .liveBaseUrl("https://live.sooplive.co.kr")
         .channelBaseUrl("https://ch.sooplive.co.kr")
-        .build();
-```
-
-### 비동기 실행자 설정
-
-```java
-Executor executor = Executors.newFixedThreadPool(4);
-
-SoopClient client = SoopClient.builder()
-        .executor(executor)
         .build();
 ```
 
