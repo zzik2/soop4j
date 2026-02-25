@@ -1,10 +1,10 @@
 package zzik2.soop4j.chat;
 
-import org.java_websocket.client.WebSocketClient;
-import org.java_websocket.handshake.ServerHandshake;
 import zzik2.soop4j.api.SoopLive;
 import zzik2.soop4j.chat.event.*;
-import zzik2.soop4j.chat.packet.*;
+import zzik2.soop4j.chat.packet.ChatType;
+import zzik2.soop4j.chat.packet.PacketBuilder;
+import zzik2.soop4j.chat.packet.PacketParser;
 import zzik2.soop4j.exception.SoopException;
 import zzik2.soop4j.exception.StreamerOfflineException;
 import zzik2.soop4j.http.SoopHttpClient;
@@ -14,15 +14,13 @@ import javax.net.ssl.SSLContext;
 import javax.net.ssl.TrustManager;
 import javax.net.ssl.X509TrustManager;
 import java.net.URI;
-import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.security.cert.X509Certificate;
 import java.util.Arrays;
-import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.List;
-import java.util.concurrent.*;
-import java.util.logging.Level;
-import java.util.logging.Logger;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.TimeUnit;
 
 /**
  * SOOP 채팅 WebSocket 클라이언트입니다.
@@ -30,17 +28,14 @@ import java.util.logging.Logger;
  */
 public class SoopChat {
 
-    private static final Logger logger = Logger.getLogger(SoopChat.class.getName());
-
     private final String streamerId;
     private final SoopHttpClient httpClient;
     private final SoopLive liveApi;
     private final ChatOptions options;
     private final List<SoopChatListener> listeners = new CopyOnWriteArrayList<>();
 
-    private WebSocketClient webSocketClient;
+    private ChatWebSocketClient webSocketClient;
     private LiveDetail liveDetail;
-    private ScheduledExecutorService pingScheduler;
     private volatile boolean connected = false;
     private volatile boolean entered = false;
     private int reconnectAttempts = 0;
@@ -85,8 +80,6 @@ public class SoopChat {
             return;
         }
 
-        stopPingScheduler();
-
         if (webSocketClient != null) {
             webSocketClient.close();
             webSocketClient = null;
@@ -113,35 +106,7 @@ public class SoopChat {
     private void connectWebSocket(String chatUrl) {
         try {
             URI uri = URI.create(chatUrl);
-            webSocketClient = new WebSocketClient(uri) {
-                @Override
-                public void onOpen(ServerHandshake handshake) {
-                    String connectPacket = PacketBuilder.buildConnectPacket();
-                    send(connectPacket);
-                }
-
-                @Override
-                public void onMessage(String message) {
-                    handleMessage(message);
-                }
-
-                @Override
-                public void onMessage(ByteBuffer bytes) {
-                    String message = new String(bytes.array(), StandardCharsets.UTF_8);
-                    logger.fine("Binary message received: " + message);
-                    handleMessage(message);
-                }
-
-                @Override
-                public void onClose(int code, String reason, boolean remote) {
-                    handleClose(reason);
-                }
-
-                @Override
-                public void onError(Exception ex) {
-                    handleError(ex);
-                }
-            };
+            webSocketClient = new ChatWebSocketClient(this, uri);
 
             SSLContext sslContext = createSSLContext();
             webSocketClient.setSocketFactory(sslContext.getSocketFactory());
@@ -153,7 +118,7 @@ public class SoopChat {
         }
     }
 
-    private void handleMessage(String packet) {
+    void handleMessage(String packet) {
         emitRaw(packet.getBytes(StandardCharsets.UTF_8));
 
         ChatType messageType = PacketParser.parseMessageType(packet);
@@ -213,12 +178,12 @@ public class SoopChat {
         emitConnect(parsed.username, parsed.syn);
 
         String joinPacket = PacketBuilder.buildJoinPacket(liveDetail.getChatNo());
-        webSocketClient.send(joinPacket);
+        webSocketClient.sendPacket(joinPacket);
     }
 
     private void handleEnterChatRoom(String packet) {
         entered = true;
-        startPingScheduler();
+        webSocketClient.startPing();
 
         PacketParser.ParsedEnterChatRoom parsed = PacketParser.parseEnterChatRoom(packet);
         emitEnterChatRoom(parsed.streamerId, parsed.synAck);
@@ -269,9 +234,8 @@ public class SoopChat {
         emitNotification(notification);
     }
 
-    private void handleClose(String reason) {
+    void handleClose(String reason) {
         boolean wasConnected = connected;
-        stopPingScheduler();
         connected = false;
         entered = false;
 
@@ -282,8 +246,7 @@ public class SoopChat {
         }
     }
 
-    private void handleError(Exception ex) {
-        logger.log(Level.SEVERE, "WebSocket error", ex);
+    void handleError(Exception ex) {
         handleClose("WebSocket 오류: " + ex.getMessage());
     }
 
@@ -301,22 +264,6 @@ public class SoopChat {
                         handleClose("재연결 실패");
                     }
                 });
-    }
-
-    private void startPingScheduler() {
-        pingScheduler = Executors.newSingleThreadScheduledExecutor();
-        pingScheduler.scheduleAtFixedRate(() -> {
-            if (webSocketClient != null && connected) {
-                webSocketClient.send(PacketBuilder.buildPingPacket());
-            }
-        }, 60, 60, TimeUnit.SECONDS);
-    }
-
-    private void stopPingScheduler() {
-        if (pingScheduler != null) {
-            pingScheduler.shutdown();
-            pingScheduler = null;
-        }
     }
 
     private String buildChatUrl(LiveDetail detail) {

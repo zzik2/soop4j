@@ -1,7 +1,5 @@
 package zzik2.soop4j.model.channel;
 
-import com.google.gson.annotations.SerializedName;
-
 public class Subscription {
 
     private int total;

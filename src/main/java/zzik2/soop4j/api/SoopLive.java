@@ -4,14 +4,12 @@ import com.google.gson.JsonObject;
 import zzik2.soop4j.constant.SoopUrls;
 import zzik2.soop4j.exception.SoopException;
 import zzik2.soop4j.http.SoopHttpClient;
-import zzik2.soop4j.internal.SoopExecutors;
 import zzik2.soop4j.model.live.LiveChannel;
 import zzik2.soop4j.model.live.LiveDetail;
 
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.Executor;
 
 /**
  * SOOP 라이브 관련 API를 제공합니다.
@@ -22,20 +20,14 @@ public class SoopLive {
 
     private final SoopHttpClient httpClient;
     private final String baseUrl;
-    private final Executor executor;
 
     public SoopLive(SoopHttpClient httpClient) {
-        this(httpClient, SoopUrls.LIVE_BASE_URL, SoopExecutors.defaultExecutor());
+        this(httpClient, SoopUrls.LIVE_BASE_URL);
     }
 
     public SoopLive(SoopHttpClient httpClient, String baseUrl) {
-        this(httpClient, baseUrl, SoopExecutors.defaultExecutor());
-    }
-
-    public SoopLive(SoopHttpClient httpClient, String baseUrl, Executor executor) {
         this.httpClient = httpClient;
         this.baseUrl = baseUrl;
-        this.executor = executor;
     }
 
     /**
@@ -76,7 +68,7 @@ public class SoopLive {
      * @return 라이브 상세 정보를 담은 CompletableFuture
      */
     public CompletableFuture<LiveDetail> detailAsync(String streamerId) {
-        return CompletableFuture.supplyAsync(() -> detail(streamerId), executor);
+        return CompletableFuture.supplyAsync(() -> detail(streamerId));
     }
 
     /**
@@ -96,7 +88,7 @@ public class SoopLive {
      * @return 방송 중 여부를 담은 CompletableFuture
      */
     public CompletableFuture<Boolean> isOnlineAsync(String streamerId) {
-        return CompletableFuture.supplyAsync(() -> isOnline(streamerId), executor);
+        return CompletableFuture.supplyAsync(() -> isOnline(streamerId));
     }
 
     /**
@@ -117,7 +109,7 @@ public class SoopLive {
      * @return 시청자 수를 담은 CompletableFuture
      */
     public CompletableFuture<Integer> getViewerCountAsync(String streamerId) {
-        return CompletableFuture.supplyAsync(() -> getViewerCount(streamerId), executor);
+        return CompletableFuture.supplyAsync(() -> getViewerCount(streamerId));
     }
 
     /**
