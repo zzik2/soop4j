@@ -3,6 +3,9 @@ package zzik2.soop4j.api;
 import com.google.gson.JsonObject;
 import zzik2.soop4j.constant.SoopUrls;
 import zzik2.soop4j.exception.SoopException;
+import zzik2.soop4j.exception.SoopApiException;
+import zzik2.soop4j.internal.Futures;
+import zzik2.soop4j.internal.Inputs;
 import zzik2.soop4j.http.SoopHttpClient;
 import zzik2.soop4j.model.live.LiveChannel;
 import zzik2.soop4j.model.live.LiveDetail;
@@ -20,14 +23,20 @@ public class SoopLive {
 
     private final SoopHttpClient httpClient;
     private final String baseUrl;
+    private final SoopChannel channelApi;
 
     public SoopLive(SoopHttpClient httpClient) {
         this(httpClient, SoopUrls.LIVE_BASE_URL);
     }
 
     public SoopLive(SoopHttpClient httpClient, String baseUrl) {
+        this(httpClient, baseUrl, new SoopChannel(httpClient));
+    }
+
+    public SoopLive(SoopHttpClient httpClient, String baseUrl, SoopChannel channelApi) {
         this.httpClient = httpClient;
         this.baseUrl = baseUrl;
+        this.channelApi = channelApi;
     }
 
     /**
@@ -37,28 +46,45 @@ public class SoopLive {
      * @return 라이브 상세 정보
      */
     public LiveDetail detail(String streamerId) {
-        Map<String, String> formData = new HashMap<>();
-        formData.put("bid", streamerId);
-        formData.put("type", "live");
-        formData.put("pwd", "");
-        formData.put("player_type", "html5");
-        formData.put("stream_type", "common");
-        formData.put("quality", "HD");
-        formData.put("mode", "landing");
-        formData.put("from_api", "0");
-        formData.put("is_revive", "false");
+        return Futures.await(detailAsync(streamerId));
+    }
 
-        String url = baseUrl + "/afreeca/player_live_api.php?bjid=" + streamerId;
-        JsonObject response = httpClient.postForm(url, formData);
+    private CompletableFuture<LiveChannel> channelAsync(String streamerId) {
+        try {
+            Inputs.streamerId(streamerId);
+            Map<String, String> formData = new HashMap<>();
+            formData.put("bid", streamerId);
+            formData.put("type", "live");
+            formData.put("pwd", "");
+            formData.put("player_type", "html5");
+            formData.put("stream_type", "common");
+            formData.put("quality", "HD");
+            formData.put("mode", "landing");
+            formData.put("from_api", "0");
+            formData.put("is_revive", "false");
 
-        if (!response.has("CHANNEL") || response.get("CHANNEL").isJsonNull()) {
-            throw new SoopException("API 응답에 CHANNEL 정보가 없습니다: " + streamerId);
+            String url = baseUrl + "/afreeca/player_live_api.php?bjid=" + streamerId;
+            return Futures.map(httpClient.postFormAsync(url, formData), response -> {
+                try {
+                    if (!response.has("CHANNEL") || !response.get("CHANNEL").isJsonObject()
+                            || !response.getAsJsonObject("CHANNEL").has("RESULT")
+                            || response.getAsJsonObject("CHANNEL").get("RESULT").isJsonNull()) {
+                        throw new SoopException("API 응답에 CHANNEL/RESULT 정보가 없습니다: " + streamerId);
+                    }
+                    LiveChannel channel = httpClient.getGson().fromJson(response.get("CHANNEL"), LiveChannel.class);
+                    if (channel.getResult() != 0 && channel.getResult() != 1) {
+                        throw new SoopApiException(streamerId, channel.getResult());
+                    }
+                    return channel;
+                } catch (SoopException e) {
+                    throw e;
+                } catch (Exception e) {
+                    throw new SoopException("라이브 응답 파싱 실패: " + streamerId, e);
+                }
+            });
+        } catch (Exception e) {
+            return CompletableFuture.failedFuture(e);
         }
-
-        JsonObject channelJson = response.getAsJsonObject("CHANNEL");
-        LiveChannel channel = httpClient.getGson().fromJson(channelJson, LiveChannel.class);
-
-        return LiveDetail.fromChannel(channel);
     }
 
     /**
@@ -68,7 +94,9 @@ public class SoopLive {
      * @return 라이브 상세 정보를 담은 CompletableFuture
      */
     public CompletableFuture<LiveDetail> detailAsync(String streamerId) {
-        return CompletableFuture.supplyAsync(() -> detail(streamerId));
+        return Futures.compose(channelAsync(streamerId), channel -> channel.isOnline()
+                ? Futures.map(getViewerCountAsync(streamerId), count -> LiveDetail.fromChannel(channel, count))
+                : CompletableFuture.completedFuture(LiveDetail.fromChannel(channel)));
     }
 
     /**
@@ -78,7 +106,7 @@ public class SoopLive {
      * @return 방송 중이면 true
      */
     public boolean isOnline(String streamerId) {
-        return detail(streamerId).isOnline();
+        return Futures.await(isOnlineAsync(streamerId));
     }
 
     /**
@@ -88,7 +116,7 @@ public class SoopLive {
      * @return 방송 중 여부를 담은 CompletableFuture
      */
     public CompletableFuture<Boolean> isOnlineAsync(String streamerId) {
-        return CompletableFuture.supplyAsync(() -> isOnline(streamerId));
+        return Futures.map(channelAsync(streamerId), LiveChannel::isOnline);
     }
 
     /**
@@ -98,8 +126,7 @@ public class SoopLive {
      * @return 시청자 수 (오프라인이면 0)
      */
     public int getViewerCount(String streamerId) {
-        LiveDetail detail = detail(streamerId);
-        return detail.isOnline() ? detail.getViewerCount() : 0;
+        return Futures.await(getViewerCountAsync(streamerId));
     }
 
     /**
@@ -109,7 +136,7 @@ public class SoopLive {
      * @return 시청자 수를 담은 CompletableFuture
      */
     public CompletableFuture<Integer> getViewerCountAsync(String streamerId) {
-        return CompletableFuture.supplyAsync(() -> getViewerCount(streamerId));
+        return Futures.map(channelApi.stationAsync(streamerId), station -> station.isOnline() ? station.getBroad().getCurrentSumViewer() : 0);
     }
 
     /**
@@ -119,6 +146,6 @@ public class SoopLive {
      * @return 썸네일 이미지 URL
      */
     public String getThumbnailUrl(String streamerId) {
-        return String.format(THUMBNAIL_URL_FORMAT, streamerId);
+        return String.format(THUMBNAIL_URL_FORMAT, Inputs.streamerId(streamerId));
     }
 }

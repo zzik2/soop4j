@@ -1,6 +1,7 @@
 package zzik2.soop4j.model.live;
 
 import java.util.Collections;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -46,20 +47,20 @@ public class LiveDetail {
         this.ftk = builder.ftk;
         this.tier1Nick = builder.tier1Nick;
         this.tier2Nick = builder.tier2Nick;
-        this.autoHashtags = builder.autoHashtags != null ? Collections.unmodifiableList(builder.autoHashtags)
-                : Collections.emptyList();
-        this.categoryTags = builder.categoryTags != null ? Collections.unmodifiableList(builder.categoryTags)
-                : Collections.emptyList();
-        this.hashTags = builder.hashTags != null ? Collections.unmodifiableList(builder.hashTags)
-                : Collections.emptyList();
-        this.viewPresets = builder.viewPresets != null ? Collections.unmodifiableList(builder.viewPresets)
-                : Collections.emptyList();
+        this.autoHashtags = builder.autoHashtags != null ? Collections.unmodifiableList(new ArrayList<>(builder.autoHashtags)) : Collections.emptyList();
+        this.categoryTags = builder.categoryTags != null ? Collections.unmodifiableList(new ArrayList<>(builder.categoryTags)) : Collections.emptyList();
+        this.hashTags = builder.hashTags != null ? Collections.unmodifiableList(new ArrayList<>(builder.hashTags)) : Collections.emptyList();
+        this.viewPresets = builder.viewPresets != null ? Collections.unmodifiableList(new ArrayList<>(builder.viewPresets)) : Collections.emptyList();
         this.geoCountryCode = builder.geoCountryCode;
         this.geoRegionCode = builder.geoRegionCode;
         this.online = builder.online;
     }
 
     public static LiveDetail fromChannel(LiveChannel channel) {
+        return fromChannel(channel, 0);
+    }
+
+    public static LiveDetail fromChannel(LiveChannel channel, int viewerCount) {
         List<ViewPreset> presets = channel.getViewPresets() != null
                 ? channel.getViewPresets().stream()
                         .map(r -> new ViewPreset(r.getLabel(), r.getLabelResolution(), r.getName(), r.getBps()))
@@ -73,7 +74,7 @@ public class LiveDetail {
                 .broadcastNo(channel.getBroadcastNo())
                 .category(channel.getCategory())
                 .chatNo(channel.getChatNo())
-                .viewerCount(channel.getViewerCount())
+                .viewerCount(viewerCount)
                 .resolution(channel.getResolution())
                 .bps(channel.getBps())
                 .chatDomain(channel.getChatDomain())

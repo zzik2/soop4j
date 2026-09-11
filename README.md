@@ -127,10 +127,16 @@ zzik2.soop4j
 
 - `StreamerOfflineException` : 스트리머가 오프라인일 때 채팅 연결 시 발생
 - `SoopException` : 일반 API/채팅 오류
+- `SoopApiException` : 정상/오프라인 이외의 `RESULT` 응답. `getResultCode()`로 원래 코드를 확인합니다.
+- `onError(Exception)` : 리스너 또는 패킷 처리 오류. 리스너의 예외는 다른 리스너와 연결 상태에 영향을 주지 않습니다.
 
 ## 비동기 사용
 
 `SoopLive`, `SoopChannel`, `SoopChat`은 `CompletableFuture` 기반 비동기 메서드를 제공합니다.
+
+HTTP 비동기 메서드는 `HttpClient.sendAsync()`를 사용합니다. 요청은 응답 본문 수신까지 기본 15초로 제한되며,
+`SoopClient.builder().requestTimeout(Duration.ofSeconds(10))`으로 변경할 수 있습니다.
+동기 호출이 인터럽트되면 요청을 취소하고 인터럽트 상태를 유지합니다.
 
 ```java
 SoopClient client = SoopClient.builder().build();
@@ -158,8 +164,15 @@ ChatOptions options = new ChatOptions.Builder()
         .autoReconnect(true)
         .reconnectDelayMs(5000)
         .maxReconnectAttempts(5)
+        .connectTimeoutMs(20000)
         .build();
+
+SoopChat chat = client.chat("streamerId").options(options).build();
 ```
+
+입장 제한 시간은 API 조회와 WebSocket/채팅방 핸드셰이크를 포함합니다.
+`maxReconnectAttempts`는 최초 시도 이후 허용하는 추가 시도 횟수이며, 재입장 성공 시 초기화됩니다.
+사용자가 명시적으로 종료하면 재시도하지 않습니다. `liveBaseUrl` 설정은 채팅 연결 준비에도 적용됩니다.
 
 ### 채팅 TLS 인증서 검증 옵션
 

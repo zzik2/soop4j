@@ -4,6 +4,9 @@ import com.google.gson.JsonObject;
 import zzik2.soop4j.constant.SoopUrls;
 import zzik2.soop4j.http.SoopHttpClient;
 import zzik2.soop4j.model.channel.StationInfo;
+import zzik2.soop4j.exception.SoopException;
+import zzik2.soop4j.internal.Futures;
+import zzik2.soop4j.internal.Inputs;
 
 import java.util.concurrent.CompletableFuture;
 
@@ -31,9 +34,7 @@ public class SoopChannel {
      * @return 스테이션 정보
      */
     public StationInfo station(String streamerId) {
-        String url = baseUrl + "/api/" + streamerId + "/station";
-        JsonObject response = httpClient.get(url);
-        return httpClient.getGson().fromJson(response, StationInfo.class);
+        return Futures.await(stationAsync(streamerId));
     }
 
     /**
@@ -43,6 +44,21 @@ public class SoopChannel {
      * @return 스테이션 정보를 담은 CompletableFuture
      */
     public CompletableFuture<StationInfo> stationAsync(String streamerId) {
-        return CompletableFuture.supplyAsync(() -> station(streamerId));
+        try {
+            String url = baseUrl + "/api/" + Inputs.streamerId(streamerId) + "/station";
+            return Futures.map(httpClient.getAsync(url), response -> {
+                try {
+                    StationInfo result = httpClient.getGson().fromJson(response, StationInfo.class);
+                    if (result == null || result.getStation() == null) throw new SoopException("스테이션 정보가 없습니다");
+                    return result;
+                } catch (SoopException e) {
+                    throw e;
+                } catch (Exception e) {
+                    throw new SoopException("스테이션 응답 파싱 실패: " + streamerId, e);
+                }
+            });
+        } catch (Exception e) {
+            return CompletableFuture.failedFuture(e);
+        }
     }
 }

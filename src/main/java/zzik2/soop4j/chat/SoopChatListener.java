@@ -8,6 +8,9 @@ import zzik2.soop4j.chat.event.*;
  */
 public interface SoopChatListener {
 
+    default void onError(Exception error) {
+    }
+
     default void onConnect(ConnectEvent event) {
     }
 

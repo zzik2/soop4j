@@ -6,10 +6,10 @@ public class RawEvent extends BaseChatEvent {
 
     public RawEvent(byte[] rawData) {
         super();
-        this.rawData = rawData;
+        this.rawData = rawData.clone();
     }
 
     public byte[] getRawData() {
-        return rawData;
+        return rawData.clone();
     }
 }

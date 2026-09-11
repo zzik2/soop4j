@@ -6,6 +6,7 @@ import zzik2.soop4j.chat.SoopChat;
 import zzik2.soop4j.constant.SoopConstants;
 import zzik2.soop4j.constant.SoopUrls;
 import zzik2.soop4j.http.SoopHttpClient;
+import java.time.Duration;
 
 /**
  * SOOP API의 메인 클라이언트입니다.
@@ -22,8 +23,8 @@ import zzik2.soop4j.http.SoopHttpClient;
  * LiveDetail detail = client.live().detail("streamerId");
  *
  * // 채팅 연결
- * SoopChat chat = client.chat("streamerId")
- *         .addListener(new SoopChatAdapter() {
+ * SoopChat chat = client.chat("streamerId").build();
+ * chat.addListener(new SoopChatAdapter() {
  *             &#64;Override
  *             public void onChat(ChatEvent event) {
  *                 System.out.println(event.getUsername() + ": " + event.getMessage());
@@ -40,13 +41,13 @@ public class SoopClient {
 
     private SoopClient(Builder builder) {
         String userAgent = builder.userAgent != null ? builder.userAgent : SoopConstants.DEFAULT_USER_AGENT;
-        this.httpClient = new SoopHttpClient(userAgent);
+        this.httpClient = new SoopHttpClient(userAgent, builder.requestTimeout);
 
         String liveBaseUrl = builder.liveBaseUrl != null ? builder.liveBaseUrl : SoopUrls.LIVE_BASE_URL;
         String channelBaseUrl = builder.channelBaseUrl != null ? builder.channelBaseUrl : SoopUrls.CHANNEL_BASE_URL;
 
-        this.live = new SoopLive(httpClient, liveBaseUrl);
         this.channel = new SoopChannel(httpClient, channelBaseUrl);
+        this.live = new SoopLive(httpClient, liveBaseUrl, channel);
     }
 
     /**
@@ -83,13 +84,26 @@ public class SoopClient {
      * @return 채팅 빌더
      */
     public SoopChat.Builder chat(String streamerId) {
-        return new SoopChat.Builder(streamerId).httpClient(httpClient);
+        return new SoopChat.Builder(streamerId).liveApi(live);
     }
 
     public static class Builder {
         private String userAgent;
         private String liveBaseUrl;
         private String channelBaseUrl;
+        private Duration requestTimeout = Duration.ofSeconds(15);
+
+        public Builder requestTimeout(Duration requestTimeout) {
+            this.requestTimeout = requestTimeout;
+            return this;
+        }
+
+        public Builder options(SoopClientOptions options) {
+            this.userAgent = options.getUserAgent();
+            this.liveBaseUrl = options.getLiveBaseUrl();
+            this.channelBaseUrl = options.getChannelBaseUrl();
+            return this;
+        }
 
         public Builder userAgent(String userAgent) {
             this.userAgent = userAgent;

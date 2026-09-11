@@ -9,7 +9,7 @@ import zzik2.soop4j.model.live.LiveDetail;
 
 public class Soop4JTest {
 
-    private static final String STREAMER_ID = "ecvhao";
+    private static final String STREAMER_ID = "sccha21";
 
     public static void main(String[] args) {
         SoopClient client = SoopClient.builder().build();
@@ -142,7 +142,7 @@ public class Soop4JTest {
             });
 
             System.out.println("채팅 연결 시도 중...");
-            chat.connectAsync();
+            chat.connectAsync().join();
             System.out.println("채팅 연결 성공! 이벤트 수신 대기 중... (종료하려면 Ctrl+C)");
 
             Runtime.getRuntime().addShutdownHook(new Thread(() -> {

@@ -175,7 +175,7 @@ public class LiveChannel {
     }
 
     public boolean isOnline() {
-        return result != 0;
+        return result == 1;
     }
 
     public static class ViewPresetRaw {

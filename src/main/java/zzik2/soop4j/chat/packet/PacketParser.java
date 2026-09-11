@@ -1,6 +1,7 @@
 package zzik2.soop4j.chat.packet;
 
 import zzik2.soop4j.exception.SoopException;
+import java.nio.charset.StandardCharsets;
 
 public final class PacketParser {
 
@@ -8,36 +9,43 @@ public final class PacketParser {
     }
 
     public static ChatType parseMessageType(String packet) {
-        if (!packet.startsWith(ChatDelimiter.STARTER)) {
+        if (packet == null || !packet.startsWith(ChatDelimiter.STARTER)) {
             throw new SoopException("잘못된 패킷: STARTER 바이트로 시작하지 않음");
         }
-        if (packet.length() < 6) {
-            throw new SoopException("잘못된 패킷: 메시지 타입 코드가 없음");
+        if (packet.length() < 14) {
+            throw new SoopException("잘못된 패킷: 헤더가 잘렸습니다");
+        }
+        for (int i = 2; i < 14; i++) {
+            if (packet.charAt(i) < '0' || packet.charAt(i) > '9') throw new SoopException("잘못된 패킷 헤더");
+        }
+        int length = Integer.parseInt(packet.substring(6, 12));
+        if (packet.substring(14).getBytes(StandardCharsets.UTF_8).length != length) {
+            throw new SoopException("패킷 본문 길이가 헤더와 다릅니다");
         }
         String code = packet.substring(2, 6);
         return ChatType.fromCode(code);
     }
 
     public static String[] splitPayload(String packet) {
-        return packet.split(ChatDelimiter.SEPARATOR);
+        return packet.split(ChatDelimiter.SEPARATOR, -1);
     }
 
     public static ParsedConnect parseConnect(String packet) {
-        String[] parts = splitPayload(packet);
+        String[] parts = requireParts(packet, 3);
         String username = parts.length > 1 ? parts[1] : null;
         String syn = parts.length > 2 ? parts[2] : null;
         return new ParsedConnect(username, syn);
     }
 
     public static ParsedEnterChatRoom parseEnterChatRoom(String packet) {
-        String[] parts = splitPayload(packet);
+        String[] parts = requireParts(packet, 8);
         String streamerId = parts.length > 2 ? parts[2] : null;
         String synAck = parts.length > 7 ? parts[7] : null;
         return new ParsedEnterChatRoom(streamerId, synAck);
     }
 
     public static ParsedChat parseChat(String packet) {
-        String[] parts = splitPayload(packet);
+        String[] parts = requireParts(packet, 7);
         String message = parts.length > 1 ? parts[1] : null;
         String userId = parts.length > 2 ? parts[2] : null;
         String username = parts.length > 6 ? parts[6] : null;
@@ -45,7 +53,7 @@ public final class PacketParser {
     }
 
     public static ParsedEmoticon parseEmoticon(String packet) {
-        String[] parts = splitPayload(packet);
+        String[] parts = requireParts(packet, 8);
         String emoticonId = parts.length > 3 ? parts[3] : null;
         String userId = parts.length > 6 ? parts[6] : null;
         String username = parts.length > 7 ? parts[7] : null;
@@ -53,7 +61,7 @@ public final class PacketParser {
     }
 
     public static ParsedDonation parseTextDonation(String packet) {
-        String[] parts = splitPayload(packet);
+        String[] parts = requireParts(packet, 5);
         String to = parts.length > 1 ? parts[1] : null;
         String from = parts.length > 2 ? parts[2] : null;
         String fromUsername = parts.length > 3 ? parts[3] : null;
@@ -63,7 +71,7 @@ public final class PacketParser {
     }
 
     public static ParsedDonation parseVideoDonation(String packet) {
-        String[] parts = splitPayload(packet);
+        String[] parts = requireParts(packet, 6);
         String to = parts.length > 2 ? parts[2] : null;
         String from = parts.length > 3 ? parts[3] : null;
         String fromUsername = parts.length > 4 ? parts[4] : null;
@@ -73,7 +81,7 @@ public final class PacketParser {
     }
 
     public static ParsedDonation parseAdBalloonDonation(String packet) {
-        String[] parts = splitPayload(packet);
+        String[] parts = requireParts(packet, 11);
         String to = parts.length > 2 ? parts[2] : null;
         String from = parts.length > 3 ? parts[3] : null;
         String fromUsername = parts.length > 4 ? parts[4] : null;
@@ -83,7 +91,7 @@ public final class PacketParser {
     }
 
     public static ParsedSubscribe parseSubscribe(String packet) {
-        String[] parts = splitPayload(packet);
+        String[] parts = requireParts(packet, 5);
         String to = parts.length > 1 ? parts[1] : null;
         String from = parts.length > 2 ? parts[2] : null;
         String fromUsername = parts.length > 3 ? parts[3] : null;
@@ -93,7 +101,7 @@ public final class PacketParser {
     }
 
     public static ParsedViewer parseViewer(String packet) {
-        String[] parts = splitPayload(packet);
+        String[] parts = requireParts(packet, 2);
         if (parts.length > 4) {
             String[] userIds = new String[(parts.length - 1) / 2];
             for (int i = 0; i < userIds.length; i++) {
@@ -102,19 +110,19 @@ public final class PacketParser {
             return new ParsedViewer(userIds);
         } else {
             String userId = parts.length > 1 ? parts[1] : null;
-            return new ParsedViewer(userId != null ? new String[] { userId } : new String[0]);
+            return new ParsedViewer(userId != null && !userId.isEmpty() ? new String[] { userId } : new String[0]);
         }
     }
 
     public static ParsedExit parseExit(String packet) {
-        String[] parts = splitPayload(packet);
+        String[] parts = requireParts(packet, 4);
         String userId = parts.length > 2 ? parts[2] : null;
         String username = parts.length > 3 ? parts[3] : null;
         return new ParsedExit(userId, username);
     }
 
     public static String parseNotification(String packet) {
-        String[] parts = splitPayload(packet);
+        String[] parts = requireParts(packet, 5);
         return parts.length > 4 ? parts[4] : null;
     }
 
@@ -123,10 +131,19 @@ public final class PacketParser {
             return 0;
         }
         try {
-            return Integer.parseInt(value);
+            int result = Integer.parseInt(value);
+            if (result < 0) throw new NumberFormatException("음수 카운터");
+            return result;
         } catch (NumberFormatException e) {
-            return 0;
+            throw new SoopException("패킷 숫자 필드가 잘못되었습니다", e);
         }
+    }
+
+    private static String[] requireParts(String packet, int minimum) {
+        parseMessageType(packet);
+        String[] parts = splitPayload(packet);
+        if (parts.length < minimum) throw new SoopException("패킷 필수 필드가 누락되었습니다");
+        return parts;
     }
 
     public static class ParsedConnect {

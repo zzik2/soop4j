@@ -1,6 +1,7 @@
 package zzik2.soop4j.chat.event;
 
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 
 public class UnknownEvent extends BaseChatEvent {
@@ -11,7 +12,7 @@ public class UnknownEvent extends BaseChatEvent {
     public UnknownEvent(String rawPacket, String[] parts) {
         super();
         this.rawPacket = rawPacket;
-        this.parts = Arrays.asList(parts);
+        this.parts = Collections.unmodifiableList(Arrays.asList(parts.clone()));
     }
 
     public String getRawPacket() {

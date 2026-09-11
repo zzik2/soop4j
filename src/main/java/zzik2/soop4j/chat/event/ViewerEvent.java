@@ -1,6 +1,7 @@
 package zzik2.soop4j.chat.event;
 
 import java.util.Collections;
+import java.util.ArrayList;
 import java.util.List;
 
 public class ViewerEvent extends BaseChatEvent {
@@ -9,7 +10,7 @@ public class ViewerEvent extends BaseChatEvent {
 
     public ViewerEvent(List<String> userIds) {
         super();
-        this.userIds = Collections.unmodifiableList(userIds);
+        this.userIds = Collections.unmodifiableList(new ArrayList<>(userIds));
     }
 
     public List<String> getUserIds() {
