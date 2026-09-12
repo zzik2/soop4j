@@ -24,7 +24,7 @@ repositories {
 }
 
 dependencies {
-    implementation("kr.zzik2:soop4j:0.0.4")
+    implementation("kr.zzik2:soop4j:0.0.5")
 }
 ```
 
