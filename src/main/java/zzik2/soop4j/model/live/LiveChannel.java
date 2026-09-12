@@ -28,7 +28,7 @@ public class LiveChannel {
     private String chatNo;
 
     @SerializedName("CTUSER")
-    private int viewerCount;
+    private int simplifyUserListThreshold;
 
     @SerializedName("RESOLUTION")
     private String resolution;
@@ -106,8 +106,8 @@ public class LiveChannel {
         return chatNo;
     }
 
-    public int getViewerCount() {
-        return viewerCount;
+    public int getSimplifyUserListThreshold() {
+        return simplifyUserListThreshold;
     }
 
     public String getResolution() {
